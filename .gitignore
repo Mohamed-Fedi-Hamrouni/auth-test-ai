@@ -1,0 +1,41 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Node and Angular
+node_modules/
+dist/
+.angular/
+coverage/
+npm-debug.log*
+
+# Robot Framework and browser artifacts
+robot-tests/results/*
+!robot-tests/results/.gitkeep
+output.xml
+log.html
+report.html
+selenium-screenshot-*.png
+playwright-report/
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+*~
+
