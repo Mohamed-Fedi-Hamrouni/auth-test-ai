@@ -84,3 +84,18 @@ robot robot-tests/smoke
 Ne jamais versionner de mot de passe réel, JWT, cookie, jeton CSRF ou clé API.
 Les données envoyées à une future IA externe devront être anonymisées, et ces
 appels resteront désactivés par défaut dans la CI.
+
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Exigences fonctionnelles](docs/requirements/functional-requirements.md)
+- [Exigences non fonctionnelles](docs/requirements/non-functional-requirements.md)
+- [Cas d’utilisation](docs/design/use-cases.md)
+- [Modèle de données](docs/design/data-model.md)
+- [Contrat API](docs/design/api-contract.md)
+- [Threat model](docs/security/threat-model.md)
+- [Stratégie de test](docs/testing/test-strategy.md)
+- [Matrice de traçabilité](docs/testing/traceability-matrix.md)
+- [Backlog](docs/project/backlog.md)
+- [Questions pour l’encadrant](docs/project/supervisor-questions.md)
+- ADR : [0001](docs/decisions/0001-monorepo.md), [0002](docs/decisions/0002-angular-flask-postgresql.md), [0003](docs/decisions/0003-authentication-session-strategy.md), [0004](docs/decisions/0004-robot-framework.md), [0005](docs/decisions/0005-ai-human-in-the-loop.md), [0006](docs/decisions/0006-github-actions.md)

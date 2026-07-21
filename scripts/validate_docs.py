@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""Validate documentation traceability, threat rows, API links and Markdown links."""
+
+from __future__ import annotations
+
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+DOCS = ROOT / "docs"
+FUNCTIONAL = DOCS / "requirements/functional-requirements.md"
+MATRIX = DOCS / "testing/traceability-matrix.md"
+API = DOCS / "design/api-contract.md"
+THREATS = DOCS / "security/threat-model.md"
+
+
+def extracted_ids(text: str) -> set[str]:
+    return set(re.findall(r"FR-(?:AUTH|ADMIN|AUDIT|TEST|AI)-\d{3}", text))
+
+
+def validate() -> list[str]:
+    errors: list[str] = []
+    requirement_ids = extracted_ids(FUNCTIONAL.read_text(encoding="utf-8"))
+    matrix_ids = extracted_ids(MATRIX.read_text(encoding="utf-8"))
+    if missing := sorted(requirement_ids - matrix_ids):
+        errors.append(f"Requirements absent from matrix: {', '.join(missing)}")
+
+    api_text = API.read_text(encoding="utf-8")
+    routes = re.findall(r"`(?:GET|POST|PATCH) (/api/[^`]+)`", api_text)
+    for route in routes:
+        row = next((line for line in api_text.splitlines() if route in line), "")
+        if not re.search(r"(?:FR-|NFR-)[A-Z]+-\d{3}", row):
+            errors.append(f"API route without requirement: {route}")
+
+    threat_rows = [line for line in THREATS.read_text(encoding="utf-8").splitlines() if line.startswith("| THR-")]
+    for row in threat_rows:
+        cells = [cell.strip() for cell in row.strip("|").split("|")]
+        if len(cells) < 10 or not cells[5] or not cells[7] or not cells[7].startswith("SEC-"):
+            errors.append(f"Threat without mitigation/security test: {cells[0] if cells else row}")
+
+    link_pattern = re.compile(r"(?<!!)\[[^]]+\]\(([^)]+)\)")
+    for markdown in [ROOT / "README.md", *DOCS.rglob("*.md")]:
+        for target in link_pattern.findall(markdown.read_text(encoding="utf-8")):
+            clean = target.split("#", 1)[0]
+            if not clean or re.match(r"(?:https?|mailto):", clean):
+                continue
+            if not (markdown.parent / clean).resolve().exists():
+                errors.append(f"Broken link in {markdown.relative_to(ROOT)}: {target}")
+
+    required = {
+        FUNCTIONAL: ["# Exigences fonctionnelles", "## Authentification"],
+        API: ["# Contrat API proposé", "## Règles transverses"],
+        THREATS: ["# Threat model", "## Vulnérabilités npm modérées observées"],
+    }
+    for path, headings in required.items():
+        content = path.read_text(encoding="utf-8")
+        for heading in headings:
+            if heading not in content:
+                errors.append(f"Missing section in {path.relative_to(ROOT)}: {heading}")
+    return errors
+
+
+if __name__ == "__main__":
+    failures = validate()
+    if failures:
+        print("Documentation validation failed:")
+        print("\n".join(f"- {failure}" for failure in failures))
+        sys.exit(1)
+    print("Documentation validation passed.")
