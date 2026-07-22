@@ -1,10 +1,10 @@
 # ADR 0003 — Stratégie de session d’authentification
 
-- Statut : proposé — validation encadrant requise
+- Statut : Accepted — implementation authorized by the supervisor
 - Date : 2026-07-21
 
 ## Contexte
-Angular appelle Flask; le navigateur ne doit pas exposer les tokens au JavaScript et logout/expiration/CSRF doivent être testables.
+Angular appelle Flask; le navigateur ne doit pas exposer les tokens au JavaScript et logout/expiration/CSRF doivent être testables. L’encadrant a délégué la sélection technique à l’équipe projet.
 
 ## Options étudiées
 1. JWT dans `localStorage` : simple pour API mais accessible en XSS, révocation difficile; rejeté.
@@ -12,7 +12,7 @@ Angular appelle Flask; le navigateur ne doit pas exposer les tokens au JavaScrip
 3. Session serveur avec identifiant opaque en cookie HttpOnly : révocation/logout directs et tests simples, au prix d’un stockage serveur et de l’état distribué.
 
 ## Décision
-Privilégier une **session serveur avec cookie opaque HttpOnly, Secure en HTTPS et SameSite**, plus protection CSRF des mutations. Si une contrainte impose JWT, utiliser uniquement un cookie HttpOnly avec durée courte et blocklist; jamais Web Storage.
+Utiliser une **session serveur stockée dans PostgreSQL avec identifiant opaque dans un cookie HttpOnly, SameSite=Lax et Secure en production**, plus protection CSRF des mutations. La session expire après 30 minutes d’inactivité et au plus tard après 8 heures. Aucun JWT ni Web Storage n’est utilisé.
 
 ## Justification
 Solution cohérente avec une application web Flask/Angular, le logout effectif, la désactivation et une stratégie de test déterministe.

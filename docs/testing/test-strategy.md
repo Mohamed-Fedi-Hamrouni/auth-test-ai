@@ -19,7 +19,9 @@ Tags futurs : `smoke`, `regression`, `api`, `ui`, `database`, `security`, `authe
 
 ## Données, temps et isolation
 
-- Données synthétiques par run, IDs uniques et rôles explicites; aucune donnée réelle. Base/schema de test dédié. Setup transactionnel/idempotent et nettoyage ciblé après test; jamais suppression de volume.
+- Données synthétiques par run, IDs uniques et rôles explicites; aucune donnée réelle. Les intégrations et migrations refusent toute URL dont la base n’est pas exactement `auth_test_ai_test`. Setup idempotent et nettoyage ciblé par `TRUNCATE` sur cette base dédiée; jamais suppression de volume ou de base de développement.
+- La factory valide le nom exact `auth_test_ai_test` avant toute extension ou connexion; les migrations sont exercées réellement depuis `base` vers `head`, puis downgrade et second upgrade. Le schéma `server_sessions` produit par Flask-Session `>=0.8,<0.9` est comparé à la migration versionnée (types, tailles, nullabilité, clés et index).
+- La protection des compteurs concurrents est vérifiée de façon déterministe en compilant `SELECT ... FOR UPDATE` avec le dialecte PostgreSQL; un test de contention à deux transactions est réservé à une future suite de charge isolée pour éviter une dépendance à l’ordonnancement.
 - Geler/injecter l’horloge pour expiration et verrouillage. Ne pas attendre réellement. Seuil, durée et reset sont configurés par fixtures après validation.
 - Parallélisation future uniquement après isolation par worker (schema, comptes et répertoire de résultats distincts); commencer séquentiel.
 - En échec UI, capture limitée à la page utile après masquage; jamais password, cookie, token ou console contenant un secret.

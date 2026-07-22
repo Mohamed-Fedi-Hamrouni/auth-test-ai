@@ -7,4 +7,3 @@ health_blueprint = Blueprint("health", __name__, url_prefix="/api")
 def health() -> tuple[object, int]:
     """Return a stable application health response."""
     return jsonify(status="ok"), 200
-

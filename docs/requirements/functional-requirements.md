@@ -1,6 +1,6 @@
 # Exigences fonctionnelles
 
-Version de conception semaine 1. Statut de toutes les exigences : **Proposed — supervisor validation required**. Les scénarios et tests sont planifiés, sauf le health check explicitement identifié dans la matrice.
+La base technique et les politiques backend ont été acceptées pour la semaine 2 après délégation du choix technique par l’encadrant. Les exigences backend Auth/Admin/Audit sont implémentées et testées avec Pytest/PostgreSQL; les scénarios frontend, Robot et IA restent planifiés selon la matrice.
 
 ## Classification
 
@@ -22,12 +22,12 @@ Les champs `Alt./exceptions` regroupent scénarios alternatifs et exceptions. Le
 | FR-AUTH-005 | Authentification réussie | User; Must | Compte actif/non verrouillé; identifiants exacts | Vérifier hash, créer session, auditer | Erreur technique : réponse générique, pas de session | HTTP 200; cookie sécurisé; audit succès; accès privé autorisé | Unit/Integration/API; UT-AUTH-003, IT-AUTH-001, API-AUTH-001 | DB, FR-AUDIT-001, ADR-0003 |
 | FR-AUTH-006 | Utilisateur inconnu | User; Must | Login absent; soumission | Refuser sans session | Entrée mal formée : 400 | HTTP 401 et même message public que mauvais mot de passe; audit interne sans `user_id` | API/Security; API-AUTH-002, SEC-AUTH-001 | FR-AUDIT-002 |
 | FR-AUTH-007 | Mot de passe incorrect | User; Must | Compte existant; mauvais secret | Refuser et auditer | Seuil atteint : verrouillage | HTTP 401 générique; aucune session; compteur mis à jour | Unit/API/Security; UT-AUTH-004, API-AUTH-003, SEC-AUTH-002 | FR-AUTH-014, FR-AUDIT-002 |
-| FR-AUTH-008 | Sensibilité à la casse | User; Must | Compte existant; casse modifiée | Comparer selon politique explicite | Normalisation Unicode à confirmer | Password toujours sensible; règle login documentée et testée sans contournement | Unit/API; UT-AUTH-005, API-AUTH-004 | Politique encadrant |
+| FR-AUTH-008 | Sensibilité à la casse | User; Must | Compte existant; casse modifiée | Login normalisé par trim+NFKC+casefold; password comparé par Argon2id | Unicode accepté | Password toujours sensible; login insensible à la casse | Unit/API; UT-AUTH-005, API-AUTH-004 | Politique acceptée |
 | FR-AUTH-009 | `Welcome FIRST_NAME LAST_NAME` | User; Must | Session valide; ouverture accueil privé | Lire identité serveur et afficher | Nom absent : erreur maîtrisée; contenu échappé | Texte exact avec données du compte authentifié, jamais celles du formulaire | UI/Security; UI-AUTH-005, SEC-AUTH-003 | FR-AUTH-005, FR-AUTH-011 |
 | FR-AUTH-010 | Déconnexion | User; Must | Session présente; action logout | Invalider serveur et expirer cookie | Session absente/expirée : opération idempotente | Après réponse, `/me` et routes privées refusent l’accès | API/UI; API-AUTH-005, UI-AUTH-006 | ADR-0003, blocklist/session |
 | FR-AUTH-011 | Protection des routes privées | User; Must | Route privée; requête | Backend vérifie session et autorisation | Absente/expirée/modifiée : refus uniforme | API 401 sans données; UI redirige; contrôle serveur obligatoire | API/UI/Security; API-AUTH-006, UI-AUTH-007, SEC-AUTH-004 | FR-AUTH-016/017 |
 | FR-AUTH-012 | Plusieurs utilisateurs | User; Must | Deux comptes; connexions séparées | Créer des sessions isolées | Connexions concurrentes : politique à confirmer | `/me`, accueil et droits correspondent toujours à chaque session | Integration/API; IT-AUTH-002, API-AUTH-007 | FR-AUTH-005 |
-| FR-AUTH-013 | Compte désactivé | User; Must | `is_active=false`; connexion | Refuser et auditer cause interne | Session existante : invalidation à confirmer | 401 générique; aucune session; pas d’énumération | API/Security; API-AUTH-008, SEC-AUTH-005 | FR-ADMIN-004, FR-AUDIT-002 |
+| FR-AUTH-013 | Compte désactivé | User; Must | `is_active=false`; connexion ou requête authentifiée | Refuser, auditer le login et rejeter toute session existante | Cookie résiduel : session nettoyée au prochain appel | 401 générique; aucune session utilisable; pas d’énumération | API/Security; API-AUTH-008, SEC-AUTH-005 | FR-ADMIN-004, FR-AUDIT-002 |
 | FR-AUTH-014 | Verrouillage après échecs | User; Should (sécurité) | Politique configurée; échecs répétés | Incrémenter puis verrouiller au seuil | Succès avant seuil : reset à confirmer | Seuil configurable; aucune connexion pendant verrouillage; audit complet | Unit/API/Security; UT-AUTH-006, API-AUTH-009, SEC-AUTH-006 | Horloge, politique encadrant |
 | FR-AUTH-015 | Expiration du verrouillage | User; Should (sécurité) | `locked_until` dépassé; nouvel essai | Autoriser une nouvelle vérification | Horloge indisponible : refus sûr | Comportement testé avec horloge contrôlée; compteur selon politique | Unit/API; UT-AUTH-007, API-AUTH-010 | FR-AUTH-014 |
 | FR-AUTH-016 | Session ou jeton expiré | User; Should (sécurité) | Session expirée; appel privé | Refuser et demander reconnexion | Logout expiré reste idempotent | 401; aucune donnée privée; cookie nettoyé si applicable | API/Security; API-AUTH-011, SEC-AUTH-007 | ADR-0003 |
@@ -74,7 +74,7 @@ Les champs `Alt./exceptions` regroupent scénarios alternatifs et exceptions. Le
 
 ## Hypothèses et décisions à confirmer
 
-- Casse et normalisation du login, exigences de mot de passe, seuil/durée de verrouillage et remise à zéro du compteur.
-- Durée de session, révocation, invalidation lors d’une désactivation et stratégie exacte cookie/session.
+- La normalisation login, la politique password (15..128), le verrouillage (5/15 minutes) et le reset après succès sont retenus.
+- La session serveur PostgreSQL expire après 30 minutes d’inactivité ou 8 heures; la désactivation est contrôlée sur chaque requête authentifiée.
 - Pagination, conservation des audits, anonymisation IP et niveau d’administration.
 - Fournisseur IA, modèle local éventuel et données autorisées. L’IA reste facultative et désactivée en CI par défaut.
