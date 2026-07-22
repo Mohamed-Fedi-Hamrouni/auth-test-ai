@@ -4,6 +4,7 @@ from flask import Flask
 
 from auth_test_ai.api.admin import admin_blueprint
 from auth_test_ai.api.auth import auth_blueprint
+from auth_test_ai.api.docs import docs_blueprint
 from auth_test_ai.api.health import health_blueprint
 from auth_test_ai.cli import register_cli
 from auth_test_ai.config import (
@@ -11,6 +12,7 @@ from auth_test_ai.config import (
     ENVIRONMENT_VARIABLE,
     ProductionConfig,
     TestingConfig,
+    bool_env,
 )
 from auth_test_ai.errors import register_error_handlers
 from auth_test_ai.extensions import init_extensions
@@ -32,6 +34,9 @@ def create_app(config: str | None = None) -> Flask:
             raise RuntimeError(f"Unknown application configuration: {selected}")
         app.config.from_object(config_class)
         app.config["ENVIRONMENT"] = selected
+        app.config["API_DOCS_ENABLED"] = bool_env(
+            "API_DOCS_ENABLED", bool(app.config["API_DOCS_ENABLED"])
+        )
         if issubclass(config_class, ProductionConfig):
             app.config.update(
                 SECRET_KEY=os.getenv("SECRET_KEY"),
@@ -48,6 +53,7 @@ def create_app(config: str | None = None) -> Flask:
     app.register_blueprint(health_blueprint)
     app.register_blueprint(auth_blueprint)
     app.register_blueprint(admin_blueprint)
+    app.register_blueprint(docs_blueprint)
     register_error_handlers(app)
     register_cli(app)
     return app

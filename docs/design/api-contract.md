@@ -2,6 +2,16 @@
 
 Base `/api`, JSON UTF-8, HTTPS hors développement. Erreurs : `{ "error": { "code": "...", "message": "...", "details": {} } }`, sans détail interne. Le cookie `auth_test_ai_session` contient uniquement un identifiant opaque; la session reste dans PostgreSQL. Il est `HttpOnly`, `SameSite=Lax` et `Secure` en production, jamais dans Web Storage. Pour NFR-SEC-001, les mutations exigent le jeton synchronisé de `GET /api/auth/csrf` dans `X-CSRFToken`.
 
+Le fichier canonique `docs/openapi/auth-test-ai.openapi.yaml` formalise ces neuf
+routes en OpenAPI 3.1. Quand `API_DOCS_ENABLED=true`, Flask sert ce fichier sur
+`GET /api/openapi.yaml` (NFR-SEC-001) et Swagger UI sur `GET /api/docs` (NFR-SECRET-001);
+ces deux routes publiques de documentation sont hors du
+contrat métier. Elles retournent
+l'enveloppe JSON 404 standard quand la documentation est désactivée. Swagger
+utilise la même origine et laisse le navigateur envoyer le cookie HttpOnly sans
+le lire. La rotation de session au login impose de renouveler le CSRF avant
+logout ou toute mutation admin.
+
 Politique retenue : Argon2id, verrouillage après 5 échecs pendant 15 minutes, inactivité 30 minutes et maximum absolu 8 heures. Le login est limité à 100 caractères, le mot de passe à 128 et le corps JSON à 16 KiB. Les endpoints backend ci-dessous sont implémentés et couverts par Pytest; les futurs tests Robot restent seulement conçus.
 
 | Route | Objectif / Requirements | Auth; rôle; CSRF | Entrée (headers, paramètres, corps, cookies) | Succès / exemple | Erreurs et codes | Validation, sécurité, logs internes | Tests envisagés |
@@ -12,8 +22,8 @@ Politique retenue : Argon2id, verrouillage après 5 échecs pendant 15 minutes, 
 | `POST /api/auth/logout` | Invalider; FR-AUTH-010/016 | Oui; User; oui | Cookie; `X-CSRFToken`; corps vide | 204 + session supprimée/cookie expiré | 400 CSRF; 401; 500 | Suppression de la session PostgreSQL | Pytest intégration; Robot futur |
 | `GET /api/auth/me` | Identité courante; FR-AUTH-009/011/012/016/017 | Oui; User; non | Cookie; `Accept`; aucun corps | 200 `{"user":{"id":"uuid","firstName":"Sample","lastName":"User","login":"sample.user","roles":["USER"],"isActive":true}}` | 401 session invalide/expirée/modifiée; 500 | Identité depuis serveur; champs allowlist; aucune donnée d’un autre utilisateur | Pytest intégration; Robot futur |
 | `GET /api/admin/users` | Lister; FR-ADMIN-001/005/006 | Oui; ADMIN; non | Cookie; `page`, `limit`, `isActive` | 200 `{"items":[...],"page":1,"limit":20,"total":1}` | 400; 401; 403; 500 | `page` ≥ 1, `limit` 1..100; jamais hash/session | Pytest intégration; Robot futur |
-| `POST /api/admin/users` | Créer; FR-ADMIN-002/006 | Oui; ADMIN; oui | Cookie, CSRF; `{"firstName":"Sample","lastName":"User","login":"sample.user","password":"<redacted>","roles":["USER"]}` | 201 avec utilisateur public | 400; 401; 403; 409; 500 | Politique 15..128, hash Argon2id avant stockage, jamais password/hash | Pytest intégration; Robot futur |
-| `PATCH /api/admin/users/{id}/status` | Activer/désactiver; FR-ADMIN-003/004/006 | Oui; ADMIN; oui | UUID; cookie/CSRF; `{"isActive":false}` | 200 avec utilisateur public | 400; 401; 403; 404; 500 | La désactivation est contrôlée à chaque requête et invalide fonctionnellement les sessions actives | Pytest intégration; Robot futur |
+| `POST /api/admin/users` | Créer; FR-ADMIN-002/006 | Oui; ADMIN; oui | Cookie, CSRF; `{"firstName":"Sample","lastName":"User","login":"sample.user","password":"<redacted>","roles":["USER"]}` | 201 avec utilisateur public | 400; 401; 403; 409; 413; 500 | Politique 15..128, hash Argon2id avant stockage, jamais password/hash | Pytest intégration; Robot futur |
+| `PATCH /api/admin/users/{id}/status` | Activer/désactiver; FR-ADMIN-003/004/006 | Oui; ADMIN; oui | UUID; cookie/CSRF; `{"isActive":false}` | 200 avec utilisateur public | 400; 401; 403; 404; 413; 500 | La désactivation est contrôlée à chaque requête et invalide fonctionnellement les sessions actives | Pytest intégration; Robot futur |
 | `GET /api/admin/auth-attempts` | Audit; FR-AUDIT-003, FR-ADMIN-006 | Oui; ADMIN; non | Cookie; `page`, `limit`, `success`, `date_from`, `date_to`, `user_id`; `date` reste alias de `date_from` | 200 `{"items":[{"id":"uuid","userId":null,"attemptedLogin":"sample","success":false,"createdAt":"2026-07-21T10:00:00+00:00"}],"page":1,"limit":20,"total":1}` | 400; 401; 403; 500 | Pagination 1..100 et filtres paramétrés; aucune IP, user-agent ou cause interne retournée | Pytest intégration; Robot futur |
 
 ## Règles transverses

@@ -20,6 +20,10 @@ Statuts autorisés : Planned, Designed, Implemented, Executed, Passed, Failed, B
 | FR-AUTH-010 | Cookie logout production | IT-SESSION-003 | Integration | Pytest/PostgreSQL | Oui | Must | Implemented | `backend/tests/integration/test_auth_api.py::test_production_style_logout_cookie_is_secure` | pytest output | Secure/HttpOnly/SameSite/Path |
 | NFR-DATA-001 | Schéma Flask-Session | IT-DB-002 | Integration | Pytest/PostgreSQL | Oui | Must | Implemented | `backend/tests/integration/test_migrations.py::test_session_schema_matches_flask_session_model` | pytest output | Types, nullabilité, contraintes et index |
 | NFR-DATA-001 | Migration réversible | IT-DB-001 | Integration | Pytest/Alembic | Oui | Must | Implemented | `backend/tests/integration/test_migrations.py::test_alembic_empty_upgrade_downgrade_and_second_upgrade` | pytest output | Base dédiée uniquement |
+| NFR-REL-001 | Contrat OpenAPI servi et parsable | UT-OPENAPI-001 | Unit/Contract | Pytest/PyYAML | Oui | Must | Implemented | `backend/tests/unit/test_api_docs.py::test_openapi_endpoint_serves_parseable_31_contract` | pytest output | OpenAPI 3.1 et neuf routes |
+| NFR-SEC-001 | Swagger same-origin sans secret embarqué | UT-OPENAPI-002 | Unit/Security | Pytest | Oui | Must | Implemented | `backend/tests/unit/test_api_docs.py::test_swagger_ui_uses_same_origin_credentials_without_embedding_secrets` | pytest output | Assets CDN figés, aucun appel réseau en test |
+| NFR-SECRET-001 | Documentation fermée par défaut en production | UT-OPENAPI-003 | Unit/Security | Pytest | Oui | Must | Implemented | `backend/tests/unit/test_api_docs.py::test_docs_environment_defaults_and_disabled_json_404` | pytest output | 404 JSON standard |
+| NFR-SEC-001 | Cohérence routes, CSRF et champs publics | UT-OPENAPI-004 | Unit/Contract | Pytest/PyYAML | Oui | Must | Implemented | `backend/tests/unit/test_api_docs.py::test_contract_security_and_public_field_consistency` | pytest output | Aucune donnée interne sensible |
 | FR-AUTH-001 | Page login | UI-AUTH-001 | UI | SeleniumLibrary | Future | Must | Designed | `robot-tests/ui/login.robot` | Robot artifacts | — |
 | FR-AUTH-002 | Champs | UI-AUTH-002 | UI | SeleniumLibrary | Future | Must | Designed | `robot-tests/ui/login.robot` | screenshot expurgée | — |
 | FR-AUTH-003 | Login requis | FE-UT-AUTH-001 | Unit | Angular/Jasmine | Future | Must | Planned | `frontend/src/app/auth/` | test output | — |
@@ -61,4 +65,4 @@ Statuts autorisés : Planned, Designed, Implemented, Executed, Passed, Failed, B
 | FR-AI-005 | Revue humaine | AI-TEST-005 | Workflow | Robot/Pytest | Future | Must si IA | Planned | `ai-testing/tests/` | décision revue | — |
 | FR-AI-006 | Verdict immuable | AI-TEST-006 | Integration | Pytest | Future | Must si IA | Designed | `ai-testing/tests/` | avant/après | Panne sans impact |
 
-Total : 56 lignes de données — Implemented: 16; Designed: 23; Planned: 17.
+Total : 60 lignes de données — Implemented: 20; Designed: 23; Planned: 17.

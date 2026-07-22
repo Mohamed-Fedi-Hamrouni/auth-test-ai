@@ -53,6 +53,24 @@ AUTH_TEST_AI_ENV=development flask --app auth_test_ai:create_app run
 L'endpoint `GET http://localhost:5000/api/health` retourne
 `{"status":"ok"}`.
 
+## Documentation API
+
+En développement et en test, Swagger UI est disponible sur
+`http://localhost:5000/api/docs` et le contrat OpenAPI 3.1 canonique sur
+`http://localhost:5000/api/openapi.yaml`. L'interface est un outil manuel de
+démonstration, pas un remplacement des suites Pytest et Robot Framework. Elle
+est servie par la même origine Flask et envoie les cookies avec les requêtes;
+ses ressources Swagger UI sont toutefois chargées depuis jsDelivr à la version
+figée `5.17.14`, donc l'affichage initial exige un accès réseau.
+
+Le navigateur gère seul le cookie de session opaque `HttpOnly`. Pour une
+mutation, appeler d'abord `GET /api/auth/csrf`, copier `csrfToken` dans
+`X-CSRFToken`, puis exécuter la requête. Après un login réussi, la rotation de
+session invalide le jeton anonyme : rappeler immédiatement l'endpoint CSRF et
+utiliser le nouveau jeton pour logout et les mutations admin. Les GET sûrs
+n'exigent pas ce header. La documentation est désactivée par défaut en
+production et exige `API_DOCS_ENABLED=true` pour une activation explicite.
+
 Préparer la base de test dédiée et appliquer les migrations :
 
 ```bash
@@ -107,6 +125,8 @@ appels resteront désactivés par défaut dans la CI.
 - [Cas d’utilisation](docs/design/use-cases.md)
 - [Modèle de données](docs/design/data-model.md)
 - [Contrat API](docs/design/api-contract.md)
+- [OpenAPI 3.1](docs/openapi/auth-test-ai.openapi.yaml)
+- [Démonstration Swagger](docs/demo/swagger-demo.md)
 - [Threat model](docs/security/threat-model.md)
 - [Stratégie de test](docs/testing/test-strategy.md)
 - [Matrice de traçabilité](docs/testing/traceability-matrix.md)

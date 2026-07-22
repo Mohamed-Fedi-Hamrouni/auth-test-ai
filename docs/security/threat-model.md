@@ -27,6 +27,7 @@ Périmètre : navigateur Angular, API Flask, PostgreSQL, outillage de test/CI et
 | THR-021 | Tampering | Scénario IA incorrect officialisé | Faux niveau de confiance | H / High | Brouillon isolé, revue/code review, tests déterministes | FR-AI-001/005 | SEC-AI-004 | Medium | TSE |
 | THR-022 | Denial | Fournisseur IA indisponible | Analyse absente | H / Low | Optionnel, timeout/circuit breaker futur, suites indépendantes | FR-AI-002/006 | SEC-AI-005 | Low | AI |
 | THR-023 | Repudiation | Flaky test classé défaut produit | Mauvais diagnostic | M / Medium | Historique, rerun diagnostique non masquant, catégorie flaky suspectée | FR-AI-003/006, NFR-REL-001 | SEC-AI-006 | Low-Med | TSE |
+| THR-024 | Disclosure/Tampering | Documentation API expose configuration ou contourne session/CSRF | Fuite ou action non autorisée | M / High | Contrat statique sans données runtime, désactivé par défaut en production, même origine, cookie HttpOnly géré par le navigateur, CSRF inchangé, tests de champs interdits | NFR-SEC-001, NFR-SECRET-001 | SEC-OPENAPI-001/002/003 | Low | BE/TSE |
 
 ## Frontières de confiance
 
