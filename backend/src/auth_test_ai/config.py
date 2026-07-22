@@ -21,6 +21,14 @@ def _int_env(name: str, default: int) -> int:
     return int(os.getenv(name, str(default)))
 
 
+def bool_env(name: str, default: bool) -> bool:
+    """Read a conventional boolean environment value with a safe default."""
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().casefold() in {"1", "true", "yes", "on"}
+
+
 def _database_url(database_name: str) -> str:
     user = quote_plus(os.getenv("POSTGRES_USER", "auth_test_ai"))
     password = quote_plus(
@@ -59,6 +67,7 @@ class BaseConfig:
     ARGON2_PARALLELISM = _int_env("ARGON2_PARALLELISM", 4)
     RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "memory://")
     JSON_SORT_KEYS = True
+    API_DOCS_ENABLED = False
 
 
 class DevelopmentConfig(BaseConfig):
@@ -66,6 +75,7 @@ class DevelopmentConfig(BaseConfig):
 
     DEBUG = True
     SESSION_COOKIE_SECURE = False
+    API_DOCS_ENABLED = True
 
 
 class TestingConfig(BaseConfig):
@@ -79,6 +89,7 @@ class TestingConfig(BaseConfig):
     ARGON2_MEMORY_COST = 8192
     ARGON2_PARALLELISM = 1
     RATELIMIT_ENABLED = True
+    API_DOCS_ENABLED = True
 
     @classmethod
     def validate(cls, values: dict[str, object]) -> None:

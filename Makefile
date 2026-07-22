@@ -1,4 +1,4 @@
-.PHONY: setup-backend install-backend test-backend test-backend-unit test-backend-integration lint-backend setup-frontend test-frontend build-frontend db-up db-down db-logs db-migrate db-upgrade db-downgrade db-current db-seed test-db-prepare validate
+.PHONY: setup-backend install-backend test-backend test-backend-unit test-backend-integration lint-backend openapi-check test-api-docs setup-frontend test-frontend build-frontend db-up db-down db-logs db-migrate db-upgrade db-downgrade db-current db-seed test-db-prepare validate
 
 setup-backend:
 	python3 -m venv .venv
@@ -18,6 +18,12 @@ test-backend-integration:
 
 lint-backend:
 	.venv/bin/python -m ruff check backend
+
+openapi-check:
+	.venv/bin/python scripts/validate_openapi.py
+
+test-api-docs:
+	.venv/bin/python -m pytest backend/tests/unit/test_api_docs.py -m unit
 
 setup-frontend:
 	npm --prefix frontend install

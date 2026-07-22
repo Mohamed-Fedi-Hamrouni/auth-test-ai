@@ -1,0 +1,682 @@
+openapi: 3.1.0
+info:
+  title: AuthTest AI API
+  version: 0.1.0
+  description: |
+    Secure Flask authentication and administration API for AuthTest AI.
+
+    Authentication uses an opaque `auth_test_ai_session` identifier in an
+    HttpOnly cookie. Session data remains server-side in PostgreSQL. The browser
+    manages this cookie and sends it automatically for same-origin requests;
+    Swagger UI neither reads nor displays it.
+
+    CSRF workflow for manual requests:
+
+    1. Call `GET /api/auth/csrf`.
+    2. Copy `csrfToken` from the JSON response.
+    3. Enter it as `X-CSRFToken` for `POST /api/auth/login`.
+    4. A successful login regenerates the session identifier, invalidating the
+       anonymous pre-login CSRF token.
+    5. Call `GET /api/auth/csrf` again after login.
+    6. Use the new authenticated token for `POST /api/auth/logout`,
+       `POST /api/admin/users`, and `PATCH /api/admin/users/{id}/status`.
+    7. Safe GET requests, including `GET /api/auth/me`, do not require the CSRF
+       header.
+
+    Swagger UI is a manual exploration and demonstration tool. It does not
+    replace deterministic Pytest or Robot Framework tests.
+servers:
+  - url: /
+    description: Current application origin
+  - url: http://localhost:5000
+    description: Local Flask development server
+tags:
+  - name: Health
+  - name: Authentication
+  - name: Administration
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Check application health
+      description: Public technical health check. No login, role, or CSRF token is required.
+      operationId: getHealth
+      responses:
+        "200":
+          description: The application process is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: ok
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/auth/csrf:
+    get:
+      tags: [Authentication]
+      summary: Issue a CSRF token
+      description: |
+        Public endpoint that stores a synchronizer token in the current
+        server-side session and returns it explicitly. No login, role, or CSRF
+        header is required. Fetch it before login and fetch a new token after a
+        successful login because login rotates the session identifier.
+      operationId: getCsrfToken
+      responses:
+        "200":
+          description: A CSRF token for the current session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsrfResponse"
+              example:
+                csrfToken: fictitious-csrf-token-copy-from-this-response
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Log in
+      description: |
+        Authenticates without a pre-existing login or role. Requires the
+        anonymous session's CSRF token in `X-CSRFToken`. On success, the server
+        regenerates the session identifier and the browser receives a new
+        HttpOnly session cookie; request a new CSRF token immediately afterward.
+      operationId: login
+      security:
+        - CsrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              login: sample.user
+              password: <fictitious-password-from-environment>
+      responses:
+        "200":
+          description: Authentication succeeded and the server-side session was created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+              example:
+                user:
+                  id: 11111111-1111-4111-8111-111111111111
+                  firstName: Sample
+                  lastName: User
+                  login: sample.user
+                  roles: [USER]
+                  isActive: true
+                message: Welcome Sample User
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Login failed without disclosing whether the account exists or why it failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              example:
+                error:
+                  code: AUTH_INVALID_CREDENTIALS
+                  message: Invalid login or password.
+                  details: {}
+        "413":
+          $ref: "#/components/responses/RequestTooLarge"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Log out
+      description: Requires an authenticated active user and the authenticated session's CSRF token. No specific role is required.
+      operationId: logout
+      security:
+        - SessionCookie: []
+          CsrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      responses:
+        "204":
+          description: Session destroyed and session cookie expired. The response has no body.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthenticationRequired"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get the current user
+      description: Requires an authenticated active user. No specific role or CSRF header is required.
+      operationId: getCurrentUser
+      security:
+        - SessionCookie: []
+      responses:
+        "200":
+          description: Current public user identity.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+              example:
+                user:
+                  id: 11111111-1111-4111-8111-111111111111
+                  firstName: Sample
+                  lastName: User
+                  login: sample.user
+                  roles: [USER]
+                  isActive: true
+        "401":
+          $ref: "#/components/responses/AuthenticationRequired"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/admin/users:
+    get:
+      tags: [Administration]
+      summary: List users
+      description: Requires an authenticated active user with the ADMIN role. No CSRF header is required.
+      operationId: listUsers
+      security:
+        - SessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - name: isActive
+          in: query
+          required: false
+          description: Filter by exact active state; only lowercase `true` or `false` is accepted.
+          schema:
+            type: string
+            enum: ["true", "false"]
+          example: "true"
+      responses:
+        "200":
+          description: Paginated public users.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthenticationRequired"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Administration]
+      summary: Create a user
+      description: Requires an authenticated active user with the ADMIN role and the authenticated session's CSRF token.
+      operationId: createUser
+      security:
+        - SessionCookie: []
+          CsrfHeader: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+            example:
+              firstName: Example
+              lastName: Operator
+              login: example.operator
+              password: <fictitious-password-from-environment>
+              roles: [USER]
+      responses:
+        "201":
+          description: User created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthenticationRequired"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: The normalized login already exists.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+              example:
+                error:
+                  code: LOGIN_ALREADY_EXISTS
+                  message: Login already exists.
+                  details: {}
+        "413":
+          $ref: "#/components/responses/RequestTooLarge"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/admin/users/{id}/status:
+    patch:
+      tags: [Administration]
+      summary: Update a user's active status
+      description: Requires an authenticated active user with the ADMIN role and the authenticated session's CSRF token.
+      operationId: updateUserStatus
+      security:
+        - SessionCookie: []
+          CsrfHeader: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User identifier.
+          schema:
+            type: string
+            format: uuid
+          example: 22222222-2222-4222-8222-222222222222
+        - $ref: "#/components/parameters/CsrfHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserStatusRequest"
+            example:
+              isActive: false
+      responses:
+        "200":
+          description: Updated public user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthenticationRequired"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          $ref: "#/components/responses/RequestTooLarge"
+        "500":
+          $ref: "#/components/responses/InternalError"
+  /api/admin/auth-attempts:
+    get:
+      tags: [Administration]
+      summary: List authentication attempts
+      description: Requires an authenticated active user with the ADMIN role. No CSRF header is required. Returned audit fields are intentionally minimized.
+      operationId: listAuthenticationAttempts
+      security:
+        - SessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - name: success
+          in: query
+          required: false
+          description: Filter by exact outcome; only lowercase `true` or `false` is accepted.
+          schema:
+            type: string
+            enum: ["true", "false"]
+          example: "false"
+        - name: user_id
+          in: query
+          required: false
+          description: Filter by user UUID.
+          schema:
+            type: string
+            format: uuid
+          example: 11111111-1111-4111-8111-111111111111
+        - name: date_from
+          in: query
+          required: false
+          description: Inclusive lower creation-time bound. A timezone-less value is interpreted as UTC.
+          schema:
+            type: string
+            format: date-time
+          example: "2026-07-01T00:00:00+00:00"
+        - name: date
+          in: query
+          required: false
+          deprecated: true
+          description: Alias of `date_from`; ignored when `date_from` is also supplied.
+          schema:
+            type: string
+            format: date-time
+          example: "2026-07-01T00:00:00+00:00"
+        - name: date_to
+          in: query
+          required: false
+          description: Inclusive upper creation-time bound. A timezone-less value is interpreted as UTC.
+          schema:
+            type: string
+            format: date-time
+          example: "2026-07-31T23:59:59+00:00"
+      responses:
+        "200":
+          description: Paginated, minimized authentication attempts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticationAttemptListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/AuthenticationRequired"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+components:
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: auth_test_ai_session
+      description: The browser automatically sends this opaque HttpOnly session identifier on same-origin requests. `auth_test_ai_session` is the project default; deployments overriding `SESSION_COOKIE_NAME` must keep this specification aligned. Swagger UI cannot and must not read or display the cookie; session data remains in PostgreSQL.
+    CsrfHeader:
+      type: apiKey
+      in: header
+      name: X-CSRFToken
+      description: Copy `csrfToken` from `/api/auth/csrf`. Fetch a new value after successful login because session rotation invalidates the anonymous token.
+  parameters:
+    CsrfHeader:
+      name: X-CSRFToken
+      in: header
+      required: true
+      description: CSRF synchronizer token for the current server-side session.
+      schema:
+        type: string
+        minLength: 1
+      example: fictitious-csrf-token-copy-from-csrf-response
+    Page:
+      name: page
+      in: query
+      required: false
+      description: One-based page number. Defaults to 1.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Items per page. Defaults to 20.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+  schemas:
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          const: ok
+    CsrfResponse:
+      type: object
+      additionalProperties: false
+      required: [csrfToken]
+      properties:
+        csrfToken:
+          type: string
+          minLength: 1
+    LoginRequest:
+      type: object
+      additionalProperties: true
+      required: [login, password]
+      properties:
+        login:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '.*\S.*'
+          description: The backend trims the login for validation and rejects a missing, empty, or whitespace-only value.
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+          writeOnly: true
+          description: Case-sensitive password submitted only for authentication.
+    LoginResponse:
+      type: object
+      additionalProperties: false
+      required: [user, message]
+      properties:
+        user:
+          $ref: "#/components/schemas/PublicUser"
+        message:
+          type: string
+    UserResponse:
+      type: object
+      additionalProperties: false
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/PublicUser"
+    PublicUser:
+      type: object
+      additionalProperties: false
+      required: [id, firstName, lastName, login, roles, isActive]
+      properties:
+        id:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+        login:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+          example: [USER]
+        isActive:
+          type: boolean
+    Pagination:
+      type: object
+      required: [page, limit, total]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          minimum: 0
+    UserListResponse:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/PublicUser"
+    CreateUserRequest:
+      type: object
+      additionalProperties: true
+      required: [firstName, lastName, login, password]
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '.*\S.*'
+          description: The backend trims this value and requires it to remain nonblank.
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '.*\S.*'
+          description: The backend trims this value and requires it to remain nonblank.
+        login:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '.*\S.*'
+          description: The backend trims and Unicode-normalizes this value and requires it to remain nonblank.
+        password:
+          type: string
+          minLength: 15
+          maxLength: 128
+          writeOnly: true
+          description: Case-sensitive password submitted only for account creation and never returned.
+        roles:
+          type: array
+          default: [USER]
+          items:
+            type: string
+            enum: [USER, ADMIN]
+    UpdateUserStatusRequest:
+      type: object
+      additionalProperties: true
+      required: [isActive]
+      properties:
+        isActive:
+          type: boolean
+    AuthenticationAttempt:
+      type: object
+      additionalProperties: false
+      required: [id, userId, attemptedLogin, success, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: [string, "null"]
+          format: uuid
+        attemptedLogin:
+          type: string
+        success:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    AuthenticationAttemptListResponse:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: "#/components/schemas/Pagination"
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/AuthenticationAttempt"
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, details]
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR, CSRF_INVALID, AUTH_INVALID_CREDENTIALS, AUTH_REQUIRED, FORBIDDEN, RESOURCE_NOT_FOUND, LOGIN_ALREADY_EXISTS, RATE_LIMITED, INTERNAL_ERROR]
+            message:
+              type: string
+            details:
+              type: object
+  responses:
+    BadRequest:
+      description: Request validation or CSRF validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Invalid request data.
+              details: {}
+    AuthenticationRequired:
+      description: The session is missing, invalid, expired, or belongs to an inactive user.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: AUTH_REQUIRED
+              message: Authentication required.
+              details: {}
+    Forbidden:
+      description: The authenticated user does not have the ADMIN role.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: FORBIDDEN
+              message: Access forbidden.
+              details: {}
+    NotFound:
+      description: The requested resource does not exist or the path is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: RESOURCE_NOT_FOUND
+              message: Resource not found.
+              details: {}
+    RequestTooLarge:
+      description: The JSON request body exceeds 16 KiB.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Request body too large.
+              details: {}
+    RateLimited:
+      description: The login rate limit was exceeded.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: RATE_LIMITED
+              message: Too many requests.
+              details: {}
+    InternalError:
+      description: Unexpected server failure without internal details.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: Internal server error.
+              details: {}

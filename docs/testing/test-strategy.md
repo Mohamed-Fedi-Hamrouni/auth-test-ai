@@ -6,6 +6,12 @@ La stratégie démontre conformité fonctionnelle, sécurité, fiabilité et tra
 
 Les tests classiques sont déterministes, fonctionnent sans clé IA et fixent seuls le verdict. L’IA ne change jamais le statut Robot; sa panne ne fait pas échouer la suite classique. Brouillons et recommandations exigent une revue humaine. Aucune capture sensible n’est envoyée à distance par défaut; secrets et PII sont masqués avant analyse.
 
+Swagger UI est réservé à l'exploration et à la démonstration manuelles. Il ne
+remplace aucune assertion automatisée. Les tests `UT-OPENAPI-001` à
+`UT-OPENAPI-004` analysent le YAML local, comparent les neuf opérations, codes
+HTTP et exigences CSRF au backend, vérifient les champs publics, le 404 de
+production et l'absence de connexion PostgreSQL/Redis ou de requête CDN.
+
 ## Pyramide et suites
 
 1. Nombreux tests unitaires **Pytest** : validation, verrouillage avec horloge injectée, autorisation et redaction.
@@ -14,6 +20,8 @@ Les tests classiques sont déterministes, fonctionnent sans clé IA et fixent se
 4. Tests **DatabaseLibrary** ciblés : effets persistants sans dupliquer la logique API.
 5. Peu de tests UI **SeleniumLibrary** : parcours critiques avec `data-testid`, attentes explicites, aucun sleep arbitraire.
 6. Tests sécurité négatifs puis smoke rapide et régression complète. Les tests de contrat vérifient codes, schémas, headers/cookies et absence de champs interdits.
+7. Validation OpenAPI légère et hors réseau via `make openapi-check`, puis tests
+   dédiés via `make test-api-docs`.
 
 Tags futurs : `smoke`, `regression`, `api`, `ui`, `database`, `security`, `authentication`, `authorization`, `negative`, `ai-assisted`. Un test peut cumuler plusieurs tags; `ai-assisted` reste exclu du verdict classique.
 
