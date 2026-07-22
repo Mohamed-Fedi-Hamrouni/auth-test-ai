@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import re
 import sys
+import ast
+from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,6 +28,54 @@ def validate() -> list[str]:
     if missing := sorted(requirement_ids - matrix_ids):
         errors.append(f"Requirements absent from matrix: {', '.join(missing)}")
 
+    matrix_text = MATRIX.read_text(encoding="utf-8")
+    matrix_rows: list[list[str]] = []
+    for line in matrix_text.splitlines():
+        if not line.startswith("| ") or line.startswith("|---"):
+            continue
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        if cells[0] != "Requirement ID":
+            matrix_rows.append(cells)
+    test_ids = [row[2] for row in matrix_rows]
+    duplicates = sorted(
+        identifier for identifier, count in Counter(test_ids).items() if count > 1
+    )
+    if duplicates:
+        errors.append(f"Duplicate matrix Test Case IDs: {', '.join(duplicates)}")
+    statuses = Counter(row[7] for row in matrix_rows)
+    total_match = re.search(
+        r"Total : (\d+) lignes de données — Implemented: (\d+); Designed: (\d+); Planned: (\d+)\.",
+        matrix_text,
+    )
+    expected_totals = (
+        len(matrix_rows),
+        statuses["Implemented"],
+        statuses["Designed"],
+        statuses["Planned"],
+    )
+    if total_match is None or tuple(map(int, total_match.groups())) != expected_totals:
+        errors.append(f"Incorrect matrix totals; expected {expected_totals}")
+    for row in matrix_rows:
+        if row[7] != "Implemented" or "Pytest" not in row[4]:
+            continue
+        qualified = re.search(r"`([^`]+)::(test_[^`]+)`", row[8])
+        if qualified is None:
+            errors.append(f"Implemented Pytest row lacks an exact function: {row[2]}")
+            continue
+        relative_path, function_name = qualified.groups()
+        test_path = ROOT / relative_path
+        if not test_path.exists():
+            errors.append(f"Missing implemented Pytest file: {relative_path}")
+            continue
+        tree = ast.parse(test_path.read_text(encoding="utf-8"))
+        functions = {
+            node.name
+            for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        if function_name not in functions:
+            errors.append(f"Missing implemented Pytest function: {qualified.group(1)}")
+
     api_text = API.read_text(encoding="utf-8")
     routes = re.findall(r"`(?:GET|POST|PATCH) (/api/[^`]+)`", api_text)
     for route in routes:
@@ -33,11 +83,22 @@ def validate() -> list[str]:
         if not re.search(r"(?:FR-|NFR-)[A-Z]+-\d{3}", row):
             errors.append(f"API route without requirement: {route}")
 
-    threat_rows = [line for line in THREATS.read_text(encoding="utf-8").splitlines() if line.startswith("| THR-")]
+    threat_rows = [
+        line
+        for line in THREATS.read_text(encoding="utf-8").splitlines()
+        if line.startswith("| THR-")
+    ]
     for row in threat_rows:
         cells = [cell.strip() for cell in row.strip("|").split("|")]
-        if len(cells) < 10 or not cells[5] or not cells[7] or not cells[7].startswith("SEC-"):
-            errors.append(f"Threat without mitigation/security test: {cells[0] if cells else row}")
+        if (
+            len(cells) < 10
+            or not cells[5]
+            or not cells[7]
+            or not cells[7].startswith("SEC-")
+        ):
+            errors.append(
+                f"Threat without mitigation/security test: {cells[0] if cells else row}"
+            )
 
     link_pattern = re.compile(r"(?<!!)\[[^]]+\]\(([^)]+)\)")
     for markdown in [ROOT / "README.md", *DOCS.rglob("*.md")]:

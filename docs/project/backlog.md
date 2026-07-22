@@ -1,10 +1,10 @@
 # Backlog semaines 2 à 8
 
-Tous les items sont **Planned**. Les fonctions IA avancées sont Could après le MVP de test. Les critères chiffrés de politique restent soumis à validation.
+Les décisions techniques de semaine 2 sont autorisées par l’encadrant. Les fonctions IA avancées restent Could après le MVP de test. Les items backend Auth/PostgreSQL/Pytest ci-dessous sont implémentés dans la branche de semaine 2; les validations Robot restent futures.
 
 | Epic / Story ID | Description; acteur | MoSCoW | Critères d’acceptation | Dépendances | Semaine | Risques |
 |---|---|---|---|---|---|---|
-| Authentication / US-AUTH-001 | Modèle User et accès PostgreSQL; Developer | Must | Migration réversible; login unique; hash seulement; tests contraintes | ADR 0002, modèle validé | 2 | Choix DB/politique password |
+| Authentication / US-AUTH-001 | Modèle User et accès PostgreSQL; Developer | Must | Migration réversible; login unique; hash seulement; tests contraintes | ADR 0002 accepté | 2 | Migration/environnements |
 | Authentication / US-AUTH-002 | Login/logout/me sécurisé; User | Must | Contrat respecté, cookie sûr, erreurs génériques, tests unit/API | US-AUTH-001, ADR 0003 | 3 | Session/CSRF |
 | Authentication / US-AUTH-003 | UI login/accueil/routes; User | Must | Validation accessible, Welcome exact, garde UX + contrôle API, UI tests | US-AUTH-002 | 3 | Flaky navigateur |
 | Authentication / US-AUTH-004 | Verrouillage/expiration; User | Should | Horloge injectable, politique configurée, tests limites | Accord encadrant | 4 | Déni de service |

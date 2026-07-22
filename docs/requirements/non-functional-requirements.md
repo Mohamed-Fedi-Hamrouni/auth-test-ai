@@ -1,10 +1,10 @@
 # Exigences non fonctionnelles
 
-Toutes sont **Proposed — supervisor validation required**. Une valeur précédée de **Initial target — to be validated with the supervisor** n’est pas une exigence contractuelle validée.
+Les choix techniques et politiques de sécurité backend de semaine 2 sont acceptés. Les objectifs de performance, accessibilité, rétention et périmètre IA restent proposés lorsqu’ils sont explicitement signalés.
 
 | ID | Description et justification | Priorité | Vérification / critère mesurable | Niveau | Statut | Décision encadrant |
 |---|---|---|---|---|---|---|
-| NFR-SEC-001 | Défense en profondeur : hash robuste, requêtes paramétrées, moindre privilège, cookies sécurisés, validation serveur. Réduit compromission et contournement. | Must | Revue, SAST futur et tests SEC; zéro secret/`password_hash` dans réponses | Security | Proposed | Algorithme de hash et politique session |
+| NFR-SEC-001 | Défense en profondeur : Argon2id, ORM paramétré, moindre privilège, cookie opaque HttpOnly/SameSite, Secure en production, CSRF serveur. | Must | Revue et Pytest; zéro secret/`password_hash` dans réponses | Security | Implemented | Politique acceptée |
 | NFR-PRIV-001 | Minimiser login, IP, user-agent et preuves; finalités et rétention documentées. | Must | Revue schéma/logs/rapports; tests de redaction | Security/Data | Proposed | Rétention, anonymisation IP, contraintes KPIT |
 | NFR-PERF-001 | Login et lectures admin restent utilisables sous charge attendue. | Should | Test de charge futur. **Initial target — to be validated with the supervisor:** p95 login < 500 ms hors réseau IA, charge à définir | Performance | Proposed | Charge, percentile et environnement |
 | NFR-REL-001 | Une erreur partielle ne crée ni faux succès ni session incohérente. | Must | Tests d’intégration transactionnels et indisponibilité DB/IA; 0 faux PASS | Integration | Proposed | Stratégie si audit indisponible |
@@ -21,4 +21,4 @@ Toutes sont **Proposed — supervisor validation required**. Une valeur précéd
 
 ## Cibles encore ouvertes
 
-Les durées de session/verrouillage/rétention, volumes, objectifs de performance, navigateurs, couverture et seuils d’accessibilité exigent une validation de l’encadrant avant de devenir des critères de sortie contractuels.
+La session (30 minutes inactive/8 heures absolues), le verrouillage (5 échecs/15 minutes) et Argon2id sont validés. Rétention, volumes, performance, navigateurs, seuil de couverture et accessibilité restent ouverts.

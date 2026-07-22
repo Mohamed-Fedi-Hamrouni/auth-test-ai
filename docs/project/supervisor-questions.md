@@ -1,17 +1,16 @@
 # Questions pour l’encadrant
 
+## Décisions closes le 21 juillet 2026
+
+L’encadrant a délégué la sélection technique à l’équipe. Flask, PostgreSQL 17, SQLAlchemy 2/Flask-SQLAlchemy, Flask-Migrate, session serveur PostgreSQL par cookie opaque, Argon2id, rôles USER/ADMIN, verrouillage 5 échecs/15 minutes et session 30 minutes/8 heures sont retenus. Les questions correspondantes ci-dessous sont archivées comme résolues et ne bloquent plus l’implémentation.
+
 ## Critical before implementation
 
 | Question | Impact projet |
 |---|---|
 | Quelle est la durée exacte du stage et quelles sont les dates de début/fin ? | Fixe capacité, jalons et profondeur des bonus. |
-| Flask est-il obligatoire ou seulement proposé ? | Conditionne architecture, compétences évaluées et réécriture potentielle. |
-| SQLite est-il obligatoire, recommandé ou libre, et PostgreSQL est-il autorisé ? | Valide ADR 0002, CI, migrations et tests DatabaseLibrary. |
 | Quel niveau d’administration est attendu ? | Détermine création, liste, activation, audit, pagination et UI. |
-| Quels rôles sont obligatoires ? | Stabilise RBAC, données initiales et cas d’autorisation. |
-| Quelle politique de verrouillage (seuil, fenêtre, durée, reset, déverrouillage admin) ? | Rend FR-AUTH-014/015 testables sans valeur arbitraire. |
 | Quelles exigences de mot de passe (longueur, compromis, rotation) ? | Fixe validation, hash et tests négatifs. |
-| Quelle durée/session et quelle stratégie (cookie JWT ou session serveur) valider ? | Fixe CSRF, révocation, stockage et tests. |
 | Quelles exigences de performance et charge ? | Permet des objectifs mesurables et un environnement de référence. |
 | Quels navigateurs/versions doivent être supportés ? | Définit matrice UI et CI. |
 | Quel niveau de tests de sécurité est attendu ? | Cadre outils, autorisations et preuves acceptables. |

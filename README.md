@@ -9,7 +9,7 @@ soumise à anonymisation et validation humaine.
 ## Architecture
 
 - `frontend/` : application Angular standalone avec routing et SCSS ;
-- `backend/` : API Flask installable, structurée avec une application factory ;
+- `backend/` : API Flask, SQLAlchemy 2, migrations Alembic et sessions PostgreSQL ;
 - `robot-tests/` : suites transverses Robot Framework ;
 - `ai-testing/` : future analyse anonymisée des résultats Robot ;
 - `docs/` : architecture et décisions ;
@@ -47,11 +47,25 @@ Arrêter le service sans supprimer le volume nommé avec `make db-down`.
 
 ```bash
 cd backend
-flask --app auth_test_ai:create_app run
+AUTH_TEST_AI_ENV=development flask --app auth_test_ai:create_app run
 ```
 
 L'endpoint `GET http://localhost:5000/api/health` retourne
 `{"status":"ok"}`.
+
+Préparer la base de test dédiée et appliquer les migrations :
+
+```bash
+make test-db-prepare
+AUTH_TEST_AI_ENV=testing make db-upgrade
+make test-backend-unit
+make test-backend-integration
+```
+
+`TEST_DATABASE_URL` doit cibler exclusivement `auth_test_ai_test`. Les tests d’intégration refusent une autre base. Le cookie navigateur est opaque et `HttpOnly`; les données de session restent dans PostgreSQL.
+
+`AUTH_TEST_AI_ENV` est obligatoire (`development`, `testing` ou `production`). La production refuse les secrets publics/faibles et `memory://` pour le rate limiting; elle attend un stockage partagé compatible Flask-Limiter. Les corps JSON sont limités à 16 KiB.
+La factory publique accepte uniquement ces trois noms (ou `None`, résolu par la variable); les classes et dictionnaires de configuration sont refusés. Avant toute extension, le mode test vérifie que `TEST_DATABASE_URL` est une URL PostgreSQL ciblant exactement `auth_test_ai_test`.
 
 ## Frontend
 
